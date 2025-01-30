@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -97,6 +97,10 @@ const Projects = () => {
     createProjectMutation.mutate(newProject);
   };
 
+  const handleProjectClick = (projectId: string) => {
+    navigate(`/projects/${projectId}`);
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -148,7 +152,11 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects?.map((project) => (
-          <Link key={project.id} to={`/projects/${project.id}`}>
+          <div
+            key={project.id}
+            onClick={() => handleProjectClick(project.id)}
+            className="cursor-pointer"
+          >
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader>
                 <CardTitle>{project.title}</CardTitle>
@@ -159,7 +167,7 @@ const Projects = () => {
                 </p>
               </CardContent>
             </Card>
-          </Link>
+          </div>
         ))}
       </div>
     </div>
