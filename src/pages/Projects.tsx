@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -22,23 +22,30 @@ const Projects = () => {
     description: "",
   });
 
-  // Check authentication status
+  // Session state to prevent race conditions
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check authentication status once on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to view and create projects",
-          variant: "destructive",
-        });
-        navigate("/login");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast({
+            title: "Authentication required",
+            description: "Please log in to view and create projects",
+            variant: "destructive",
+          });
+          navigate("/login");
+        }
+      } finally {
+        setIsCheckingAuth(false);
       }
     };
     checkAuth();
-  }, [navigate, toast]);
+  }, []);
 
-  const { data: projects } = useQuery({
+  const { data: projects, isLoading: isLoadingProjects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -53,6 +60,7 @@ const Projects = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !isCheckingAuth, // Only run query after auth check
   });
 
   const createProjectMutation = useMutation({
@@ -96,6 +104,21 @@ const Projects = () => {
     if (!newProject.title.trim()) return;
     createProjectMutation.mutate(newProject);
   };
+
+  const handleProjectClick = (projectId: string) => {
+    // Only navigate if we're not in a loading state
+    if (!isCheckingAuth && !isLoadingProjects) {
+      navigate(`/projects/${projectId}`);
+    }
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="container mx-auto p-6 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6">
@@ -148,7 +171,11 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects?.map((project) => (
-          <Link key={project.id} to={`/projects/${project.id}`}>
+          <div
+            key={project.id}
+            onClick={() => handleProjectClick(project.id)}
+            className="cursor-pointer"
+          >
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader>
                 <CardTitle>{project.title}</CardTitle>
@@ -159,7 +186,7 @@ const Projects = () => {
                 </p>
               </CardContent>
             </Card>
-          </Link>
+          </div>
         ))}
       </div>
     </div>
