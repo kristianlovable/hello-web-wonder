@@ -2,10 +2,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const Projects = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -21,12 +22,32 @@ const Projects = () => {
     description: "",
   });
 
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to view and create projects",
+          variant: "destructive",
+        });
+        navigate("/login");
+      }
+    };
+    checkAuth();
+  }, [navigate, toast]);
+
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No session");
+
       const { data, error } = await supabase
         .from("projects")
         .select("*")
+        .eq('owner_id', session.user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -36,9 +57,15 @@ const Projects = () => {
 
   const createProjectMutation = useMutation({
     mutationFn: async (projectData: typeof newProject) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No session");
+
       const { data, error } = await supabase
         .from("projects")
-        .insert([projectData])
+        .insert([{
+          ...projectData,
+          owner_id: session.user.id
+        }])
         .select()
         .single();
 
