@@ -8,6 +8,17 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CardModal } from "@/components/CardModal";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove } from "@dnd-kit/sortable";
 
 const ProjectBoard = () => {
   const { id: projectId } = useParams();
@@ -16,6 +27,12 @@ const ProjectBoard = () => {
   const [newListTitle, setNewListTitle] = useState("");
   const [newCardTitle, setNewCardTitle] = useState<Record<string, string>>({});
   const [selectedCard, setSelectedCard] = useState<any>(null);
+  const [activeCard, setActiveCard] = useState<any>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor)
+  );
 
   // Fetch project details
   const { data: project } = useQuery({
@@ -47,6 +64,36 @@ const ProjectBoard = () => {
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Update card position mutation
+  const updateCardPositionMutation = useMutation({
+    mutationFn: async ({ cardId, listId, position }: { cardId: string, listId: string, position: number }) => {
+      const { data, error } = await supabase
+        .from("cards")
+        .update({ list_id: listId, position })
+        .eq("id", cardId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      toast({
+        title: "Success",
+        description: "Card position updated",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update card position",
+        variant: "destructive",
+      });
+      console.error("Error updating card position:", error);
     },
   });
 
@@ -134,6 +181,34 @@ const ProjectBoard = () => {
     addCardMutation.mutate({ listId, title });
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === active.id);
+    setActiveCard(activeCard);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over) return;
+    
+    const activeCardId = active.id;
+    const overListId = over.id.toString();
+    
+    // Find the card and its current list
+    const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
+    if (!activeCard) return;
+    
+    // Update the card's position
+    updateCardPositionMutation.mutate({
+      cardId: activeCardId.toString(),
+      listId: overListId,
+      position: 0, // For now, we'll just set it to 0. In a full implementation, you'd calculate the correct position
+    });
+    
+    setActiveCard(null);
+  };
+
   if (!project) return null;
 
   return (
@@ -142,73 +217,94 @@ const ProjectBoard = () => {
         <h1 className="text-3xl font-bold">{project.title}</h1>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {lists?.map((list) => (
-          <div
-            key={list.id}
-            className="flex-none w-80 bg-gray-100 rounded-lg p-4"
-          >
-            <h3 className="font-semibold mb-4">{list.title}</h3>
-            
-            <div className="space-y-2">
-              {list.cards?.map((card) => (
-                <div
-                  key={card.id}
-                  className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => setSelectedCard(card)}
-                >
-                  <h4>{card.title}</h4>
-                  {card.due_date && (
-                    <div className="text-sm text-gray-500 mt-1">
-                      Due: {new Date(card.due_date).toLocaleDateString()}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {lists?.map((list) => (
+            <div
+              key={list.id}
+              className="flex-none w-80 bg-gray-100 rounded-lg p-4"
+            >
+              <h3 className="font-semibold mb-4">{list.title}</h3>
+              
+              <SortableContext items={list.cards || []}>
+                <div className="space-y-2">
+                  {list.cards?.map((card) => (
+                    <div
+                      key={card.id}
+                      className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-move"
+                      onClick={() => setSelectedCard(card)}
+                    >
+                      <h4>{card.title}</h4>
+                      {card.due_date && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          Due: {new Date(card.due_date).toLocaleDateString()}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
 
-            <div className="mt-4">
-              <Input
-                placeholder="Add a card..."
-                value={newCardTitle[list.id] || ""}
-                onChange={(e) =>
-                  setNewCardTitle((prev) => ({
-                    ...prev,
-                    [list.id]: e.target.value,
-                  }))
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleAddCard(list.id);
+              <div className="mt-4">
+                <Input
+                  placeholder="Add a card..."
+                  value={newCardTitle[list.id] || ""}
+                  onChange={(e) =>
+                    setNewCardTitle((prev) => ({
+                      ...prev,
+                      [list.id]: e.target.value,
+                    }))
                   }
-                }}
-              />
-              <Button
-                className="w-full mt-2"
-                variant="ghost"
-                onClick={() => handleAddCard(list.id)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Card
-              </Button>
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleAddCard(list.id);
+                    }
+                  }}
+                />
+                <Button
+                  className="w-full mt-2"
+                  variant="ghost"
+                  onClick={() => handleAddCard(list.id)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Card
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        <div className="flex-none w-80">
-          <form onSubmit={handleAddList} className="space-y-2">
-            <Input
-              placeholder="Add a list..."
-              value={newListTitle}
-              onChange={(e) => setNewListTitle(e.target.value)}
-            />
-            <Button className="w-full" type="submit">
-              <Plus className="h-4 w-4 mr-2" />
-              Add List
-            </Button>
-          </form>
+          <div className="flex-none w-80">
+            <form onSubmit={handleAddList} className="space-y-2">
+              <Input
+                placeholder="Add a list..."
+                value={newListTitle}
+                onChange={(e) => setNewListTitle(e.target.value)}
+              />
+              <Button className="w-full" type="submit">
+                <Plus className="h-4 w-4 mr-2" />
+                Add List
+              </Button>
+            </form>
+          </div>
         </div>
-      </div>
+
+        <DragOverlay>
+          {activeCard ? (
+            <div className="bg-white p-3 rounded shadow-lg">
+              <h4>{activeCard.title}</h4>
+              {activeCard.due_date && (
+                <div className="text-sm text-gray-500 mt-1">
+                  Due: {new Date(activeCard.due_date).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <CardModal
         card={selectedCard}
