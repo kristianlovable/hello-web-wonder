@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { List } from "@/components/List";
 import { useProjectStore } from "@/stores/project-store";
 import { useListStore } from "@/stores/list-store";
@@ -16,29 +15,52 @@ import { ListCreator } from "@/components/ListCreator";
 
 export default function ProjectBoard() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const { lists, reorderList } = useListStore();
   const { reorderCard, moveCard } = useCardStore();
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchProjectData = async () => {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('description')
-        .eq('id', projectId)
-        .single();
+      if (!projectId) {
+        navigate('/projects');
+        return;
+      }
 
-      if (project?.description) {
-        setDescription(project.description);
+      try {
+        setIsLoading(true);
+        const { data: project, error } = await supabase
+          .from('projects')
+          .select('description')
+          .eq('id', projectId)
+          .single();
+
+        if (error) throw error;
+
+        if (project?.description) {
+          setDescription(project.description);
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error loading project",
+          description: error.message,
+          variant: "destructive",
+        });
+        navigate('/projects');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchProjectData();
-  }, [projectId]);
+  }, [projectId, navigate, toast]);
 
   const handleDescriptionSave = async () => {
+    if (!projectId) return;
+
     const { error } = await supabase
       .from('projects')
       .update({ description })
@@ -59,6 +81,8 @@ export default function ProjectBoard() {
   };
 
   const generateTasks = async () => {
+    if (!projectId) return;
+    
     if (!description) {
       toast({
         title: "Description required",
@@ -92,7 +116,7 @@ export default function ProjectBoard() {
       
       // Refresh the board to show new tasks
       window.location.reload();
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error generating tasks",
         description: error.message,
@@ -134,6 +158,14 @@ export default function ProjectBoard() {
       return;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full p-4 space-y-4">
