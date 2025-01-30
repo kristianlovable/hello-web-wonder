@@ -85,7 +85,9 @@ const Projects = () => {
     createProjectMutation.mutate(newProject);
   };
 
-  const handleProjectClick = (projectId: string) => {
+  const handleProjectClick = (e: React.MouseEvent, projectId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     // Prevent navigation if we're still loading or have an error
     if (isLoadingProjects || projectsError) return;
     navigate(`/projects/${projectId}`);
@@ -160,22 +162,20 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects?.map((project) => (
-          <div
+          <Card
             key={project.id}
-            onClick={() => handleProjectClick(project.id)}
-            className="cursor-pointer"
+            onClick={(e) => handleProjectClick(e, project.id)}
+            className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
           >
-            <Card className="hover:shadow-lg transition-shadow duration-200">
-              <CardHeader>
-                <CardTitle>{project.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {project.description || "No description"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+            <CardHeader>
+              <CardTitle>{project.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {project.description || "No description"}
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>
