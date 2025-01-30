@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CardModal } from "@/components/CardModal";
 
 const ProjectBoard = () => {
   const { id: projectId } = useParams();
@@ -14,6 +15,7 @@ const ProjectBoard = () => {
   const queryClient = useQueryClient();
   const [newListTitle, setNewListTitle] = useState("");
   const [newCardTitle, setNewCardTitle] = useState<Record<string, string>>({});
+  const [selectedCard, setSelectedCard] = useState<any>(null);
 
   // Fetch project details
   const { data: project } = useQuery({
@@ -152,9 +154,15 @@ const ProjectBoard = () => {
               {list.cards?.map((card) => (
                 <div
                   key={card.id}
-                  className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedCard(card)}
                 >
                   <h4>{card.title}</h4>
+                  {card.due_date && (
+                    <div className="text-sm text-gray-500 mt-1">
+                      Due: {new Date(card.due_date).toLocaleDateString()}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -201,6 +209,12 @@ const ProjectBoard = () => {
           </form>
         </div>
       </div>
+
+      <CardModal
+        card={selectedCard}
+        isOpen={!!selectedCard}
+        onClose={() => setSelectedCard(null)}
+      />
     </div>
   );
 };
