@@ -13,10 +13,10 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="absolute top-0 right-0 p-4">
+      <nav className="absolute top-0 right-0 p-4 z-50">
         <Link 
           to="/login"
-          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          className="inline-block px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors"
         >
           Login
         </Link>
