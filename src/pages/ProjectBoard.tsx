@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -141,6 +140,23 @@ const ProjectBoard = () => {
   // Update card position mutation
   const updateCardPositionMutation = useMutation({
     mutationFn: async ({ cardId, listId, position }: { cardId: string, listId: string, position: number }) => {
+      // First, update positions of other cards in the target list
+      const targetList = lists?.find(list => list.id === listId);
+      if (targetList) {
+        const cardsInTargetList = targetList.cards || [];
+        const updates = cardsInTargetList
+          .filter(c => c.id !== cardId && c.position >= position)
+          .map(c => ({
+            id: c.id,
+            position: c.position + 1
+          }));
+
+        if (updates.length > 0) {
+          await supabase.from("cards").upsert(updates);
+        }
+      }
+
+      // Then update the dragged card
       const { data, error } = await supabase
         .from("cards")
         .update({ list_id: listId, position })
@@ -274,12 +290,8 @@ const ProjectBoard = () => {
     
     if (!sourceList || !targetList) return;
 
-    const activeCard = sourceList.cards?.find(card => card.id === activeCardId);
-    if (!activeCard) return;
-
-    // Calculate new position in target list
     const targetCards = targetList.cards || [];
-    const newPosition = targetCards.length;
+    const newPosition = 0; // Place at the top of the target list
 
     updateCardPositionMutation.mutate({
       cardId: activeCardId.toString(),
