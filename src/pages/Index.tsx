@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronRight, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -11,6 +12,16 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="absolute top-0 right-0 p-4">
+        <Link 
+          to="/login"
+          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+        >
+          Login
+        </Link>
+      </nav>
+
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center px-4 overflow-hidden">
         <div
