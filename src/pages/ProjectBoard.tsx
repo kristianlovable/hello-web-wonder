@@ -65,8 +65,9 @@ function DraggableCard({ card, onClick }: { card: Card; onClick: () => void }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-move"
+      className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-move mb-2"
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         onClick();
       }}
@@ -133,7 +134,7 @@ const ProjectBoard = () => {
         .order("position");
 
       if (error) throw error;
-      return data;
+      return data as List[];
     },
   });
 
@@ -206,13 +207,16 @@ const ProjectBoard = () => {
   // Add new card mutation
   const addCardMutation = useMutation({
     mutationFn: async ({ listId, title }: { listId: string; title: string }) => {
+      const targetList = lists?.find(list => list.id === listId);
+      const maxPosition = targetList?.cards?.length || 0;
+
       const { data, error } = await supabase
         .from("cards")
         .insert([
           {
             list_id: listId,
             title,
-            position: 0,
+            position: maxPosition,
           },
         ])
         .select()
@@ -265,13 +269,22 @@ const ProjectBoard = () => {
     const activeCardId = active.id;
     const overListId = over.id.toString();
     
-    const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
-    if (!activeCard) return;
+    const sourceList = lists?.find(list => list.cards?.some(card => card.id === activeCardId));
+    const targetList = lists?.find(list => list.id === overListId);
     
+    if (!sourceList || !targetList) return;
+
+    const activeCard = sourceList.cards?.find(card => card.id === activeCardId);
+    if (!activeCard) return;
+
+    // Calculate new position in target list
+    const targetCards = targetList.cards || [];
+    const newPosition = targetCards.length;
+
     updateCardPositionMutation.mutate({
       cardId: activeCardId.toString(),
       listId: overListId,
-      position: 0,
+      position: newPosition,
     });
     
     setActiveCard(null);

@@ -39,14 +39,23 @@ export function CardModal({ card, isOpen, onClose }: CardModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setTitle("");
+      setDescription("");
+      setDate(undefined);
+    }
+  }, [isOpen]);
+
   // Update form fields when card changes
   useEffect(() => {
-    if (card) {
+    if (card && isOpen) {
       setTitle(card.title);
       setDescription(card.description || "");
       setDate(card.due_date ? new Date(card.due_date) : undefined);
     }
-  }, [card]);
+  }, [card, isOpen]);
 
   const updateCardMutation = useMutation({
     mutationFn: async () => {
