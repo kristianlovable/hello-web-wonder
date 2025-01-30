@@ -2,16 +2,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 const Projects = () => {
   const { toast } = useToast();
@@ -23,14 +22,27 @@ const Projects = () => {
     description: "",
   });
 
-  const { data: projects, isLoading: isLoadingProjects, error: projectsError } = useQuery({
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to view and create projects",
+          variant: "destructive",
+        });
+        navigate("/login");
+      }
+    };
+    checkAuth();
+  }, [navigate, toast]);
+
+  const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/login");
-        throw new Error("No session");
-      }
+      if (!session) throw new Error("No session");
 
       const { data, error } = await supabase
         .from("projects")
@@ -85,32 +97,6 @@ const Projects = () => {
     createProjectMutation.mutate(newProject);
   };
 
-  const handleProjectClick = (e: React.MouseEvent, projectId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Prevent navigation if we're still loading or have an error
-    if (isLoadingProjects || projectsError) return;
-    navigate(`/projects/${projectId}`);
-  };
-
-  if (isLoadingProjects) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (projectsError) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <p className="text-red-500">Error loading projects. Please try again.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -162,20 +148,18 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects?.map((project) => (
-          <Card
-            key={project.id}
-            onClick={(e) => handleProjectClick(e, project.id)}
-            className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
-          >
-            <CardHeader>
-              <CardTitle>{project.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {project.description || "No description"}
-              </p>
-            </CardContent>
-          </Card>
+          <Link key={project.id} to={`/projects/${project.id}`}>
+            <Card className="hover:shadow-lg transition-shadow duration-200">
+              <CardHeader>
+                <CardTitle>{project.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {project.description || "No description"}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>
