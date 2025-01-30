@@ -1,22 +1,18 @@
+
 import { useEffect, useState } from "react";
-import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
-import { List } from "@/components/List";
-import { useProjectStore } from "@/stores/project-store";
+import { supabase } from "@/integrations/supabase/client";
 import { useListStore } from "@/stores/list-store";
 import { useCardStore } from "@/stores/card-store";
-import { useLabelStore } from "@/stores/label-store";
-import { ListCreator } from "@/components/ListCreator";
+import { ProjectDescription } from "@/components/ProjectDescription";
+import { BoardSection } from "@/components/ProjectBoard/BoardSection";
 
 export default function ProjectBoard() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { lists, reorderList } = useListStore();
+  const { reorderList } = useListStore();
   const { reorderCard, moveCard } = useCardStore();
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -68,28 +64,6 @@ export default function ProjectBoard() {
     fetchProjectData();
   }, [projectId, navigate, toast]);
 
-  const handleDescriptionSave = async () => {
-    if (!projectId) return;
-
-    const { error } = await supabase
-      .from('projects')
-      .update({ description })
-      .eq('id', projectId);
-
-    if (error) {
-      toast({
-        title: "Error saving description",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Description saved",
-        description: "Project description has been updated.",
-      });
-    }
-  };
-
   const generateTasks = async () => {
     if (!projectId) return;
     
@@ -124,7 +98,6 @@ export default function ProjectBoard() {
         description: `Successfully created ${tasks.length} new tasks.`,
       });
       
-      // Refresh the board to show new tasks
       window.location.reload();
     } catch (error: any) {
       toast({
@@ -138,7 +111,7 @@ export default function ProjectBoard() {
   };
 
   const onDragEnd = (result: any) => {
-    const { destination, source, draggableId, type } = result;
+    const { destination, source, type } = result;
 
     if (!destination) return;
 
@@ -165,7 +138,6 @@ export default function ProjectBoard() {
           destination.index
         );
       }
-      return;
     }
   };
 
@@ -179,51 +151,13 @@ export default function ProjectBoard() {
 
   return (
     <div className="h-full p-4 space-y-4">
-      <div className="space-y-2">
-        <Textarea
-          placeholder="Describe your project to generate tasks..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="min-h-[100px]"
-        />
-        <div className="flex space-x-2">
-          <Button onClick={handleDescriptionSave}>
-            Save Description
-          </Button>
-          <Button 
-            onClick={generateTasks} 
-            disabled={isGenerating}
-            variant="secondary"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Tasks...
-              </>
-            ) : (
-              'Generate Tasks'
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="all-lists" direction="horizontal" type="list">
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className="flex gap-3"
-            >
-              {lists.map((listId, index) => (
-                <List key={listId} id={listId} index={index} />
-              ))}
-              {provided.placeholder}
-              <ListCreator />
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <ProjectDescription
+        initialDescription={description}
+        projectId={projectId || ""}
+        onGenerateTasks={generateTasks}
+        isGenerating={isGenerating}
+      />
+      <BoardSection onDragEnd={onDragEnd} />
     </div>
   );
 }
