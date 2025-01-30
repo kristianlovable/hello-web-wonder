@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -40,6 +39,11 @@ interface List {
   cards: Card[];
 }
 
+interface DraggableItemData {
+  type: 'card';
+  item: Card;
+}
+
 function DraggableCard({ card, onClick }: { card: Card; onClick: () => void }) {
   const {
     attributes,
@@ -50,7 +54,10 @@ function DraggableCard({ card, onClick }: { card: Card; onClick: () => void }) {
     isDragging,
   } = useSortable({
     id: card.id,
-    data: card,
+    data: {
+      type: 'card',
+      item: card,
+    } as DraggableItemData,
   });
 
   const style = {
@@ -287,30 +294,28 @@ const ProjectBoard = () => {
     
     if (!over || !lists) return;
     
-    const activeCardId = active.id.toString();
-    const activeCard = lists.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
-    
-    if (!activeCard) return;
+    const activeData = active.data.current as DraggableItemData;
+    if (!activeData || activeData.type !== 'card') return;
 
+    const activeCard = activeData.item;
     const sourceList = lists.find(list => list.id === activeCard.list_id);
     if (!sourceList) return;
 
-    // Find target list and position
     let targetListId: string;
     let newPosition: number;
 
-    if (over.data.current?.type === "card") {
+    // Check if we're dropping on a card or directly on a list
+    const overData = over.data.current as DraggableItemData | undefined;
+    
+    if (overData?.type === 'card') {
       // Dropping on another card
-      const overCard = lists.flatMap(list => list.cards || []).find(card => card.id === over.id);
-      if (!overCard) return;
-      
+      const overCard = overData.item;
       targetListId = overCard.list_id;
       const targetList = lists.find(list => list.id === targetListId);
       if (!targetList) return;
 
-      // If dropping on a card in the same list
       if (targetListId === sourceList.id) {
-        // Calculate position based on whether we're dropping before or after the target card
+        // Same list movement
         newPosition = overCard.position;
         if (activeCard.position < overCard.position) {
           newPosition -= 0.5;
@@ -318,7 +323,7 @@ const ProjectBoard = () => {
           newPosition += 0.5;
         }
       } else {
-        // Dropping in a different list
+        // Different list movement
         newPosition = overCard.position - 0.5;
       }
     } else {
@@ -327,21 +332,21 @@ const ProjectBoard = () => {
       const targetList = lists.find(list => list.id === targetListId);
       if (!targetList) return;
       
-      // If dropping in the same list, place at the end
       if (targetListId === sourceList.id) {
+        // Same list, append to end
         const maxPosition = Math.max(...(targetList.cards || []).map(c => c.position), -1);
         newPosition = maxPosition + 1;
       } else {
-        // If dropping in a different list, place at the end
+        // Different list, append to end
         newPosition = (targetList.cards || []).length;
       }
     }
 
-    // Normalize position to be a whole number
+    // Round the position to ensure we have whole numbers
     newPosition = Math.round(newPosition);
 
     updateCardPositionMutation.mutate({
-      cardId: activeCardId,
+      cardId: activeCard.id,
       listId: targetListId,
       position: newPosition,
     });
@@ -366,7 +371,9 @@ const ProjectBoard = () => {
           {lists?.map((list) => (
             <div
               key={list.id}
+              id={list.id}
               className="flex-none w-80 bg-gray-100 rounded-lg p-4"
+              data-type="list"
             >
               <h3 className="font-semibold mb-4">{list.title}</h3>
               
