@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -148,7 +149,11 @@ const ProjectBoard = () => {
           .filter(c => c.id !== cardId && c.position >= position)
           .map(c => ({
             id: c.id,
-            position: c.position + 1
+            position: c.position + 1,
+            list_id: c.list_id,
+            title: c.title,
+            description: c.description,
+            due_date: c.due_date
           }));
 
         if (updates.length > 0) {
@@ -405,3 +410,4 @@ const ProjectBoard = () => {
 };
 
 export default ProjectBoard;
+
