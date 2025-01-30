@@ -282,45 +282,66 @@ const ProjectBoard = () => {
     setActiveCard(activeCard || null);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over) return;
+    if (!over || !lists) return;
     
-    const activeCardId = active.id;
-    const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
+    const activeCardId = active.id.toString();
+    const activeCard = lists.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
     
     if (!activeCard) return;
 
-    // Find the destination list by looking at the over card's list_id
-    const overCard = lists?.flatMap(list => list.cards || []).find(card => card.id === over.id);
-    let targetListId;
-    
-    if (overCard) {
-      // If we're over another card, use its list_id
+    const sourceList = lists.find(list => list.id === activeCard.list_id);
+    if (!sourceList) return;
+
+    // Find target list and position
+    let targetListId: string;
+    let newPosition: number;
+
+    if (over.data.current?.type === "card") {
+      // Dropping on another card
+      const overCard = lists.flatMap(list => list.cards || []).find(card => card.id === over.id);
+      if (!overCard) return;
+      
       targetListId = overCard.list_id;
+      const targetList = lists.find(list => list.id === targetListId);
+      if (!targetList) return;
+
+      // If dropping on a card in the same list
+      if (targetListId === sourceList.id) {
+        // Calculate position based on whether we're dropping before or after the target card
+        newPosition = overCard.position;
+        if (activeCard.position < overCard.position) {
+          newPosition -= 0.5;
+        } else {
+          newPosition += 0.5;
+        }
+      } else {
+        // Dropping in a different list
+        newPosition = overCard.position - 0.5;
+      }
     } else {
-      // If we're not over a card, then over.id must be the list id
+      // Dropping directly on a list
       targetListId = over.id.toString();
-    }
-    
-    const targetList = lists?.find(list => list.id === targetListId);
-    if (!targetList) return;
-    
-    // Calculate new position
-    const targetCards = targetList.cards || [];
-    let newPosition;
-    
-    // If dropping on a card, place it before that card
-    if (overCard) {
-      newPosition = overCard.position;
-    } else {
-      // If dropping directly on a list, place at the end
-      newPosition = targetCards.length;
+      const targetList = lists.find(list => list.id === targetListId);
+      if (!targetList) return;
+      
+      // If dropping in the same list, place at the end
+      if (targetListId === sourceList.id) {
+        const maxPosition = Math.max(...(targetList.cards || []).map(c => c.position), -1);
+        newPosition = maxPosition + 1;
+      } else {
+        // If dropping in a different list, place at the end
+        newPosition = (targetList.cards || []).length;
+      }
     }
 
+    // Normalize position to be a whole number
+    newPosition = Math.round(newPosition);
+
     updateCardPositionMutation.mutate({
-      cardId: activeCardId.toString(),
+      cardId: activeCardId,
       listId: targetListId,
       position: newPosition,
     });
