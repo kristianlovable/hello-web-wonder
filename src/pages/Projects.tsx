@@ -5,12 +5,13 @@ import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const Projects = () => {
   const { toast } = useToast();
@@ -22,27 +23,14 @@ const Projects = () => {
     description: "",
   });
 
-  // Check authentication status
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to view and create projects",
-          variant: "destructive",
-        });
-        navigate("/login");
-      }
-    };
-    checkAuth();
-  }, [navigate, toast]);
-
-  const { data: projects } = useQuery({
+  const { data: projects, isLoading: isLoadingProjects, error: projectsError } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No session");
+      if (!session) {
+        navigate("/login");
+        throw new Error("No session");
+      }
 
       const { data, error } = await supabase
         .from("projects")
@@ -98,8 +86,28 @@ const Projects = () => {
   };
 
   const handleProjectClick = (projectId: string) => {
+    // Prevent navigation if we're still loading or have an error
+    if (isLoadingProjects || projectsError) return;
     navigate(`/projects/${projectId}`);
   };
+
+  if (isLoadingProjects) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (projectsError) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <p className="text-red-500">Error loading projects. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6">
