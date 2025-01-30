@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +33,20 @@ interface CardModalProps {
 }
 
 export function CardModal({ card, isOpen, onClose }: CardModalProps) {
-  const [title, setTitle] = useState(card?.title || "");
-  const [description, setDescription] = useState(card?.description || "");
-  const [date, setDate] = useState<Date | undefined>(
-    card?.due_date ? new Date(card.due_date) : undefined
-  );
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState<Date | undefined>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update form fields when card changes
+  useEffect(() => {
+    if (card) {
+      setTitle(card.title);
+      setDescription(card.description || "");
+      setDate(card.due_date ? new Date(card.due_date) : undefined);
+    }
+  }, [card]);
 
   const updateCardMutation = useMutation({
     mutationFn: async () => {

@@ -18,7 +18,68 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface Card {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  position: number;
+  list_id: string;
+}
+
+interface List {
+  id: string;
+  title: string;
+  cards: Card[];
+}
+
+function DraggableCard({ card, onClick }: { card: Card; onClick: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: card.id,
+    data: card,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-move"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <h4>{card.title}</h4>
+      {card.due_date && (
+        <div className="text-sm text-gray-500 mt-1">
+          Due: {new Date(card.due_date).toLocaleDateString()}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ProjectBoard = () => {
   const { id: projectId } = useParams();
@@ -26,12 +87,21 @@ const ProjectBoard = () => {
   const queryClient = useQueryClient();
   const [newListTitle, setNewListTitle] = useState("");
   const [newCardTitle, setNewCardTitle] = useState<Record<string, string>>({});
-  const [selectedCard, setSelectedCard] = useState<any>(null);
-  const [activeCard, setActiveCard] = useState<any>(null);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [activeCard, setActiveCard] = useState<Card | null>(null);
 
   const sensors = useSensors(
-    useSensor(MouseSensor),
-    useSensor(TouchSensor)
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    })
   );
 
   // Fetch project details
@@ -184,7 +254,7 @@ const ProjectBoard = () => {
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === active.id);
-    setActiveCard(activeCard);
+    setActiveCard(activeCard || null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -195,15 +265,13 @@ const ProjectBoard = () => {
     const activeCardId = active.id;
     const overListId = over.id.toString();
     
-    // Find the card and its current list
     const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
     if (!activeCard) return;
     
-    // Update the card's position
     updateCardPositionMutation.mutate({
       cardId: activeCardId.toString(),
       listId: overListId,
-      position: 0, // For now, we'll just set it to 0. In a full implementation, you'd calculate the correct position
+      position: 0,
     });
     
     setActiveCard(null);
@@ -230,21 +298,17 @@ const ProjectBoard = () => {
             >
               <h3 className="font-semibold mb-4">{list.title}</h3>
               
-              <SortableContext items={list.cards || []}>
+              <SortableContext
+                items={list.cards || []}
+                strategy={verticalListSortingStrategy}
+              >
                 <div className="space-y-2">
                   {list.cards?.map((card) => (
-                    <div
+                    <DraggableCard
                       key={card.id}
-                      className="bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow cursor-move"
+                      card={card}
                       onClick={() => setSelectedCard(card)}
-                    >
-                      <h4>{card.title}</h4>
-                      {card.due_date && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          Due: {new Date(card.due_date).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
+                    />
                   ))}
                 </div>
               </SortableContext>
