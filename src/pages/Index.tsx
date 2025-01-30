@@ -1,6 +1,5 @@
-
 import { useEffect, useState } from "react";
-import { ChevronRight, ArrowRight } from "lucide-react";
+import { ChevronRight, ArrowRight, Twitter, Linkedin, Github } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -11,7 +10,7 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* Navigation */}
       <nav className="absolute top-0 right-0 p-4 z-50">
         <Link 
@@ -87,6 +86,85 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-50 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            {/* Brand/About Column */}
+            <div>
+              <h3 className="font-bold text-lg mb-4">Your Brand</h3>
+              <p className="text-gray-600 mb-4">
+                Creating extraordinary experiences through innovative design and technology.
+              </p>
+              <p className="text-gray-600">
+                123 Innovation Street<br />
+                Tech Valley, CA 94043
+              </p>
+            </div>
+
+            {/* Quick Links Column */}
+            <div>
+              <h3 className="font-bold text-lg mb-4">Quick Links</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors">
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/features" className="text-gray-600 hover:text-gray-900 transition-colors">
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/contact" className="text-gray-600 hover:text-gray-900 transition-colors">
+                    Contact
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Connect Column */}
+            <div>
+              <h3 className="font-bold text-lg mb-4">Connect</h3>
+              <div className="flex space-x-4">
+                <a 
+                  href="https://twitter.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <Twitter className="w-5 h-5" />
+                </a>
+                <a 
+                  href="https://linkedin.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <Linkedin className="w-5 h-5" />
+                </a>
+                <a 
+                  href="https://github.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <Github className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="border-t border-gray-200 pt-8">
+            <p className="text-center text-gray-600 text-sm">
+              © {new Date().getFullYear()} Your Company. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
