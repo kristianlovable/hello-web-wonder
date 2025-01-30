@@ -277,15 +277,22 @@ const ProjectBoard = () => {
     const activeCard = sourceList.cards?.find(card => card.id === activeCardId);
     if (!activeCard) return;
 
-    // Calculate new position in target list
-    const targetCards = targetList.cards || [];
-    const newPosition = targetCards.length;
+    // Get all cards in target list except the dragged card
+    const otherCards = targetList.cards?.filter(card => card.id !== activeCardId) || [];
+    
+    // Calculate new position based on existing cards
+    const newPosition = sourceList.id === targetList.id ? 
+      activeCard.position : // Same list - keep position
+      Math.max(...otherCards.map(card => card.position).concat(-1)) + 1; // New list - put at end
 
-    updateCardPositionMutation.mutate({
-      cardId: activeCardId.toString(),
-      listId: overListId,
-      position: newPosition,
-    });
+    // Only update if position or list changed
+    if (activeCard.list_id !== overListId || activeCard.position !== newPosition) {
+      updateCardPositionMutation.mutate({
+        cardId: activeCardId.toString(),
+        listId: overListId,
+        position: newPosition,
+      });
+    }
     
     setActiveCard(null);
   };
