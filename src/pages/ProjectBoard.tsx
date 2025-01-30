@@ -288,19 +288,40 @@ const ProjectBoard = () => {
     if (!over) return;
     
     const activeCardId = active.id;
-    const overListId = over.id.toString();
+    const activeCard = lists?.flatMap(list => list.cards || []).find(card => card.id === activeCardId);
     
-    const sourceList = lists?.find(list => list.cards?.some(card => card.id === activeCardId));
-    const targetList = lists?.find(list => list.id === overListId);
-    
-    if (!sourceList || !targetList) return;
+    if (!activeCard) return;
 
+    // Find the destination list by looking at the over card's list_id
+    const overCard = lists?.flatMap(list => list.cards || []).find(card => card.id === over.id);
+    let targetListId;
+    
+    if (overCard) {
+      // If we're over another card, use its list_id
+      targetListId = overCard.list_id;
+    } else {
+      // If we're not over a card, then over.id must be the list id
+      targetListId = over.id.toString();
+    }
+    
+    const targetList = lists?.find(list => list.id === targetListId);
+    if (!targetList) return;
+    
+    // Calculate new position
     const targetCards = targetList.cards || [];
-    const newPosition = 0; // Place at the top of the target list
+    let newPosition;
+    
+    // If dropping on a card, place it before that card
+    if (overCard) {
+      newPosition = overCard.position;
+    } else {
+      // If dropping directly on a list, place at the end
+      newPosition = targetCards.length;
+    }
 
     updateCardPositionMutation.mutate({
       cardId: activeCardId.toString(),
-      listId: overListId,
+      listId: targetListId,
       position: newPosition,
     });
     
@@ -410,4 +431,3 @@ const ProjectBoard = () => {
 };
 
 export default ProjectBoard;
-
