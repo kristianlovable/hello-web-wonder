@@ -27,23 +27,41 @@ serve(async (req) => {
     console.log('Generating tasks for project:', projectId);
     console.log('Project description:', description);
     
-    // Get the first list in the project
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: lists, error: listError } = await supabase
+
+    // Get or create the first list in the project
+    let { data: lists, error: listError } = await supabase
       .from('lists')
-      .select('id, position')
+      .select('id, position, title')
       .eq('project_id', projectId)
       .order('position')
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (listError) {
       console.error('Error fetching list:', listError);
       throw new Error('Failed to fetch project list');
     }
 
+    // If no list exists, create a default "To Do" list
     if (!lists) {
-      throw new Error('No list found in project');
+      console.log('No list found, creating default "To Do" list');
+      const { data: newList, error: createListError } = await supabase
+        .from('lists')
+        .insert({
+          project_id: projectId,
+          title: 'To Do',
+          position: 1000,
+        })
+        .select()
+        .single();
+
+      if (createListError) {
+        console.error('Error creating default list:', createListError);
+        throw new Error('Failed to create default list');
+      }
+
+      lists = newList;
     }
 
     // Generate tasks using AI
@@ -95,7 +113,7 @@ serve(async (req) => {
       throw new Error('Invalid tasks format from AI service');
     }
 
-    // Create tasks in the first list
+    // Create tasks in the list
     const { data: existingCards, error: cardsError } = await supabase
       .from('cards')
       .select('position')
