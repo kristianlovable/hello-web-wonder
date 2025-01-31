@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -78,24 +77,18 @@ export default function ProjectBoard() {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/functions/v1/generate-tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('generate-tasks', {
+        body: {
           projectId,
           description,
-        }),
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to generate tasks');
+      if (error) throw error;
 
-      const { tasks } = await response.json();
       toast({
         title: "Tasks generated",
-        description: `Successfully created ${tasks.length} new tasks.`,
+        description: "Successfully generated new tasks.",
       });
       
       window.location.reload();
